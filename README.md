@@ -120,7 +120,7 @@ Real applications built during the course — open source, forkable, contributio
 
 Distill is a live open-source project built in this course. Contributing to it is part of the curriculum.
 
-**[→ Read the Contribution Guide](./05_Local_LLMs_and_API_Providers/distill/CONTRIBUTING.md)**
+**[→ Read the Contribution Guide](https://github.com/nursnaaz/distill/blob/main/CONTRIBUTING.md)**
 
 The guide walks you through forking, branching, opening a PR, and responding to review — the exact workflow used at every AI company. Mohamed reviews every PR personally.
 
