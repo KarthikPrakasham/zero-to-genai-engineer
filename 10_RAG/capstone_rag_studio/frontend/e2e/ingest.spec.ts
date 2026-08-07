@@ -22,6 +22,14 @@ test.describe("Ingest", () => {
     await page.goto("/#/ingest");
     await expect(page.getByTestId("ingest-page")).toBeVisible();
 
+    // Regression: the "Files" label must be wired to the real file input via
+    // matching id/for, or clicking the visible label text (the natural first
+    // click for most users, not just the tiny native browser button) silently
+    // does nothing — Cloudscape's FormField only generates this link when
+    // given an explicit controlId matching the input's actual id.
+    const fileInputId = await page.getByTestId("file-input").getAttribute("id");
+    await expect(page.locator(`label[for="${fileInputId}"]`)).toHaveText("Files");
+
     // PUBLIC is the default — ACL controls are hidden.
     await expect(page.getByTestId("acl-controls")).toHaveCount(0);
 

@@ -68,7 +68,7 @@ export default function IngestPage() {
           <Container header={<Header variant="h2">Upload</Header>}>
             <Form>
               <SpaceBetween size="l">
-                <FormField label="Files">
+                <FormField label="Files" controlId="file-input">
                   <input
                     id="file-input"
                     {...testId("file-input")}
