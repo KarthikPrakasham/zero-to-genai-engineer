@@ -88,8 +88,8 @@ Then keep the **[Cheat Sheet](./prereq/cheatsheet.md)** open during S00.
 | **API keys** | S00–S03 (and most of S04 NB1) need none. S04 NB2 onwards uses Gemini. From S10, put `OPENAI_API_KEY` in a copy of [`10_RAG/.env.example`](./10_RAG/.env.example). Anthropic, Cohere, Pinecone, Tavily, LangSmith only when a notebook asks. |
 | **Local models (S05 / S06 Ollama notebook)** | [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) on your laptop. These will not run in Colab. |
 | **GPU** | Only the S02 training loop wants Colab Pro / a real GPU. Everything else is CPU or an API. |
-| **Node 18+** | Only if you run a React app (CineMatch, Distill, RAG Studio, Medium article agent, S14 lab 05). Streamlit paths don't need it. |
-| **AWS account (S14 only)** | Bedrock AgentCore, Cognito, App Runner, CloudFront, IAM — plus [Docker Desktop](https://www.docker.com/products/docker-desktop/) and the [AWS CDK CLI](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html) for lab 05. Free-tier eligible; App Runner is the main "left it on overnight" cost — see the S14 cleanup steps. |
+| **Node 18+** | Only if you run a React app (CineMatch, Distill, RAG Studio, Medium article agent, S14 labs 05/06). Streamlit paths don't need it. |
+| **AWS account (S14 only)** | Bedrock AgentCore, Cognito, App Runner, CloudFront, IAM — plus [Docker Desktop](https://www.docker.com/products/docker-desktop/) and the [AWS CDK CLI](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html) for labs 05/06. Free-tier eligible; App Runner is the main "left it on overnight" cost — see the S14 cleanup steps. |
 
 ```bash
 git clone https://github.com/nursnaaz/zero-to-genai-engineer.git
@@ -118,10 +118,10 @@ Every weekend is notebooks you actually run. Most also leave you with an app, a 
 | PDF slide decks | S00 (3) · S01 (1) · S02 (1) · S05 (`slides.pdf`) | Each session's `slides/` |
 | Interactive browser tutorials | **25** | [nursnaaz.github.io](https://nursnaaz.github.io) — deep links next to each session |
 | Student group RAG datasets | **9 companies** | [`10_RAG/student_group_datasets/`](./10_RAG/student_group_datasets/) |
-| AWS Bedrock AgentCore labs | **5** | [`14_Bedrock_AgentCore/`](./14_Bedrock_AgentCore/) — LangGraph, Strands, and CrewAI agents on a managed AWS Runtime, plus a full Cognito + React + FastAPI + CDK production deploy |
+| AWS Bedrock AgentCore labs | **6** | [`14_Bedrock_AgentCore/`](./14_Bedrock_AgentCore/) — LangGraph, Strands, and CrewAI agents on a managed AWS Runtime, plus a full Cognito + React + FastAPI + CDK production deploy (two paths: staged CDK or 10 progressive folders) |
 | Shippable apps in this repo | **11** | See [Projects](#-projects-you-can-ship) |
 
-Quick naming trap: folder `10_RAG/` is session **S10**, which covers modules **M07 + M08 + M06** (memory went into the RAG chatbot, not its own weekend). `11_LangGraph/` is session **S11** = module **M10**. `12_deepagents/` is **S12**. `13_Project_Implementation/` is **S13** (Dining Bot). `14_Bedrock_AgentCore/` is **S14** — five sub-labs numbered `01.` → `05.`, and it goes beyond the original 23-module syllabus (see [Module map](#-where-the-23-module-syllabus-stands)).
+Quick naming trap: folder `10_RAG/` is session **S10**, which covers modules **M07 + M08 + M06** (memory went into the RAG chatbot, not its own weekend). `11_LangGraph/` is session **S11** = module **M10**. `12_deepagents/` is **S12**. `13_Project_Implementation/` is **S13** (Dining Bot). `14_Bedrock_AgentCore/` is **S14** — six sub-labs numbered `01.` → `06.`, and it goes beyond the original 23-module syllabus (see [Module map](#-where-the-23-module-syllabus-stands)).
 
 ---
 
@@ -625,17 +625,18 @@ streamlit run dining_bot.py
 
 **Start page:** [`14_Bedrock_AgentCore/README.md`](./14_Bedrock_AgentCore/)
 
-Five self-contained labs, numbered `01.` → `05.`. Every Runtime lab starts from an **empty** AgentCore account — you create your own Memory, Gateway, and Identity. Never paste a classmate's `MEMORY_ID`, Gateway credentials, or Runtime ARN.
+Six self-contained labs, numbered `01.` → `06.`. Every Runtime lab starts from an **empty** AgentCore account — you create your own Memory, Gateway, and Identity. Never paste a classmate's `MEMORY_ID`, Gateway credentials, or Runtime ARN.
 
 ```text
 S14 lab 04  Compare LangGraph vs Strands vs CrewAI, locally, in one notebook   ← start here (no AWS)
 S14 lab 01  Same ideas on AgentCore, framework = LangGraph (+ Harness tools)
 S14 lab 02  Same ideas on AgentCore, framework = Strands   (Support Copilot)
 S14 lab 03  Same ideas on AgentCore, framework = CrewAI    (Competitor Brief)
-S14 lab 05  Ship it: Strands agent + Cognito + React + FastAPI + CDK on your own AWS account
+S14 lab 05  Ship it: Strands agent + Cognito + React + FastAPI + CDK — one staged CDK app
+S14 lab 06  Same ship-it stack, taught as 10 cumulative folders instead of stage flags
 ```
 
-Recommended order: **04** (compare locally, free) → **01 / 02 / 03** in any order, each is "from scratch" → **05** (needs lab 02's Runtime ARN first).
+Recommended order: **04** (compare locally, free) → **01 / 02 / 03** in any order, each is "from scratch" → **05 or 06** (needs lab 02's Runtime ARN first — pick the staged CDK app or the 10 folders, or do both).
 
 #### Labs 01–03 — one agent, three frameworks, same AgentCore arc
 
@@ -674,9 +675,11 @@ source .venv/bin/activate
 jupyter notebook powerful_agents_comparison.ipynb
 ```
 
-#### Lab 05 — ship the full stack on your own AWS account
+#### Labs 05 & 06 — ship the full stack on your own AWS account
 
-[`05.strands-support-react-aws/`](./14_Bedrock_AgentCore/05.strands-support-react-aws/) — takes the Strands Support Copilot from lab **02** and puts a real product in front of it: **Cognito** username/password login → **CloudFront** (one HTTPS URL) → **S3** (React chat UI) + **App Runner** (FastAPI) → **IAM-invoked** AgentCore Runtime. No AWS keys ever reach the browser.
+Both labs deploy the **same** production stack — they're two teaching paths to one destination, not two different apps. Pick one, or do both.
+
+[`05.agentcore-production-deploy/`](./14_Bedrock_AgentCore/05.agentcore-production-deploy/) — takes the Strands Support Copilot from lab **02** and puts a real product in front of it: **Cognito** username/password login → **CloudFront** (one HTTPS URL) → **S3** (React chat UI) + **App Runner** (FastAPI) → **IAM-invoked** AgentCore Runtime. No AWS keys ever reach the browser.
 
 ```text
 Browser → Cognito login → ID token (JWT)
@@ -689,18 +692,16 @@ CloudFront (one HTTPS URL)
                           AgentCore Runtime (Strands Support Copilot, from lab 02)
 ```
 
-Two ways to learn it — pick one, or do both:
-
 | Path | What it is | Best for |
 |---|---|---|
-| **[`classroom_steps/`](./14_Bedrock_AgentCore/05.strands-support-react-aws/classroom_steps/)** ★ | 10 cumulative folders (`01_empty_cdk` → `10_agentcore_chat`); each is a complete, runnable snapshot. Deploy folder *N*, open folder *N+1* to see the delta, repeat. | Seeing each AWS layer appear one at a time |
-| **[`CLASSROOM_10_CDK_DEPLOYS.md`](./14_Bedrock_AgentCore/05.strands-support-react-aws/CLASSROOM_10_CDK_DEPLOYS.md)** | The same 10 stages, but as **one** `cdk/` app driven by `-c stage=1..10` flags | Once you understand the folders, or if you prefer fewer directories |
+| **[`06.progressive-deploy/`](./14_Bedrock_AgentCore/06.progressive-deploy/)** ★ | Sibling lab — 10 cumulative folders (`01_empty_cdk` → `10_agentcore_chat`); each is a complete, runnable snapshot. Deploy folder *N*, open folder *N+1* to see the delta, repeat. | Seeing each AWS layer appear one at a time |
+| **[`05.agentcore-production-deploy/CLASSROOM_10_CDK_DEPLOYS.md`](./14_Bedrock_AgentCore/05.agentcore-production-deploy/CLASSROOM_10_CDK_DEPLOYS.md)** | The same 10 stages, but as **one** `cdk/` app driven by `-c stage=1..10` flags | Once you understand the folders, or if you prefer fewer directories |
 
 Both walk the same 10 checkpoints: empty stack → Cognito pool → SPA app client → demo user → private S3 → CloudFront → React login (chat locked) → FastAPI `/health` → JWT-locked `/api/me` → full AgentCore chat.
 
-First CDK deploy is usually **10–20 minutes** (one-time account bootstrap). App Runner is the main always-on cost — the lab README's [Cleanup](./14_Bedrock_AgentCore/05.strands-support-react-aws/README.md#9-cleanup--stop-charges) section tears it down; `cdk destroy` does **not** delete the AgentCore Runtime/Memory/Gateway/Guardrail from lab 02, so clean those up separately when you're done.
+First CDK deploy is usually **10–20 minutes** (one-time account bootstrap). App Runner is the main always-on cost — lab 05's [Cleanup](./14_Bedrock_AgentCore/05.agentcore-production-deploy/README.md#9-cleanup--stop-charges) section tears it down; `cdk destroy` does **not** delete the AgentCore Runtime/Memory/Gateway/Guardrail from lab 02, so clean those up separately when you're done.
 
-**What we learned building this session:** the multi-framework labs (01–03) share almost all of their setup — Memory, Gateway, and Identity are identical concepts across LangGraph, Strands, and CrewAI, only the agent code differs. So lab 05 deliberately reuses lab 02's flagship agent rather than building a fourth one — the point of S14 is deployment shape, not a new agent. The `classroom_steps/` folders exist because "one big CDK diff" hides *which* resource unlocked *which* capability; ten small, runnable snapshots make that visible.
+**What we learned building this session:** the multi-framework labs (01–03) share almost all of their setup — Memory, Gateway, and Identity are identical concepts across LangGraph, Strands, and CrewAI, only the agent code differs. So labs 05/06 deliberately reuse lab 02's flagship agent rather than building a fourth one — the point of S14 is deployment shape, not a new agent. Lab 06 exists as its own folder (not buried inside lab 05) because "one big CDK diff" hides *which* resource unlocked *which* capability; ten small, runnable, standalone snapshots make that visible.
 
 ---
 
@@ -708,7 +709,7 @@ First CDK deploy is usually **10–20 minutes** (one-time account bootstrap). Ap
 
 | Project | Session | Stack | What it is |
 |---|---|---|---|
-| **[Strands Support Copilot on AWS](./14_Bedrock_AgentCore/05.strands-support-react-aws/)** | S14 | Strands, Bedrock AgentCore, Cognito, React, FastAPI, CDK | Full-stack cloud deploy: JWT-gated chat UI on CloudFront, App Runner API, IAM-invoked agent Runtime — no keys in the browser |
+| **[Strands Support Copilot on AWS](./14_Bedrock_AgentCore/05.agentcore-production-deploy/)** | S14 | Strands, Bedrock AgentCore, Cognito, React, FastAPI, CDK | Full-stack cloud deploy: JWT-gated chat UI on CloudFront, App Runner API, IAM-invoked agent Runtime — no keys in the browser |
 | **[Dining Bot](./13_Project_Implementation/)** | S13 | LangGraph, Deep Agents, RAG, SQLite, MCP, HITL | One-file teaching app + spec + sample DB |
 | **[Self-Correcting Agentic RAG](./11_LangGraph/capstone_agentic_rag/)** | S11 extra | LangGraph, RAGAS, Streamlit | Grade → rewrite → groundedness loop → escalate |
 | **[Medium Article Agent](https://github.com/nursnaaz/medium-article-agent)** | S11 extra | LangGraph, FastAPI, React | Ingest PDF/PPTX/HTML → draft → 6 reviewers → HITL → Markdown. Separate repo — not in this clone. |
@@ -867,7 +868,7 @@ S04, S06, S07, S09, S10e, and S10g are notebook- or guide-led. S11c is the [Stre
 | Agent frameworks (cloud) | Strands · CrewAI (LangGraph again, on a managed Runtime) | [S14](./14_Bedrock_AgentCore/) |
 | Managed agent hosting | Amazon Bedrock **AgentCore** — Runtime, Memory, Gateway, Identity | [S14](./14_Bedrock_AgentCore/) |
 | Cloud identity & hosting | Cognito · App Runner · CloudFront · S3 · IAM | [S14](./14_Bedrock_AgentCore/) |
-| Infra as code | AWS CDK (Python) | [S14 lab 05](./14_Bedrock_AgentCore/05.strands-support-react-aws/) |
+| Infra as code | AWS CDK (Python) | [S14 lab 05](./14_Bedrock_AgentCore/05.agentcore-production-deploy/) / [lab 06](./14_Bedrock_AgentCore/06.progressive-deploy/) |
 
 ---
 
@@ -917,7 +918,7 @@ S04, S06, S07, S09, S10e, and S10g are notebook- or guide-led. S11c is the [Stre
 
 | Date | What shipped |
 |---|---|
-| 2026-09-06 → 2026-09-19 | **S14** — Bedrock AgentCore: LangGraph / Strands / CrewAI agents on a managed Runtime (labs 01–03), a local framework-comparison notebook (lab 04), and a full Cognito + React + FastAPI + CDK AWS deploy (lab 05) |
+| 2026-09-06 → 2026-09-19 | **S14** — Bedrock AgentCore: LangGraph / Strands / CrewAI agents on a managed Runtime (labs 01–03), a local framework-comparison notebook (lab 04), and a full Cognito + React + FastAPI + CDK AWS deploy taught two ways (lab 05 staged CDK, lab 06 progressive folders) |
 | 2026-08-29 | **S13** — Dining Bot capstone brief (v1.1) + sample SQLite DB |
 | 2026-08-28 | **S12** — LangChain vs LangGraph vs Deep Agents (files, `AGENT.md`, `SKILL.md`) |
 | 2026-08-23 | **S11d–e** — reasoning patterns + SQL agent. Portfolio: [medium-article-agent](https://github.com/nursnaaz/medium-article-agent) |
