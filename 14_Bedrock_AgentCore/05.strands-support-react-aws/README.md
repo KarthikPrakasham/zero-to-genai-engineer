@@ -3,13 +3,21 @@
 Parent index: [`../README.md`](../README.md)  
 Agent Runtime lab (required first): [`../02.strands-agentcore-bedrock`](../02.strands-agentcore-bedrock/)
 
-This guide is written so **anyone** can deploy the full stack in **their own AWS
-account** — AgentCore Runtime → FastAPI on App Runner → React on S3 + CloudFront —
-without copying trainer ARNs, buckets, or profiles.
+This guide is written so **you** can deploy the full stack in **your own AWS
+account** — AgentCore Runtime → FastAPI on App Runner → React on S3 + CloudFront
+**with Cognito username/password login** — without copying someone else’s ARNs or profiles.
 
 **Honest scope:** this README + lab 02 together are the full path. Lab **05** alone
 cannot create the agent brain — you must finish lab **02** Runtime first, then
-come back here for the web UI hosting (CDK recommended).
+come back here for Cognito + web UI hosting (CDK recommended).
+
+**Learn the stack in layers (recommended in class):**
+
+| Path | What it is | Start here |
+|---|---|---|
+| [`classroom_steps/`](./classroom_steps/) | **★ Preferred** — 10 folders; each is a complete snapshot. Deploy N, then open N+1 to see the delta. | [`classroom_steps/README.md`](./classroom_steps/README.md) |
+| [`CLASSROOM_10_CDK_DEPLOYS.md`](./CLASSROOM_10_CDK_DEPLOYS.md) | Alternate path — one `cdk/` app with `-c stage=1..10` | After you understand the folders, or if you prefer stage flags |
+| [`classroom_steps/STEP_BY_STEP.md`](./classroom_steps/STEP_BY_STEP.md) | Detailed why / how / verify for every folder | While deploying `classroom_steps/` |
 
 ---
 
@@ -54,24 +62,48 @@ Also install lab-02 tooling when you get there (`uv`, OpenAI API key). See lab 0
 
 ```
 Browser
-  │  HTTPS  (one CloudFront URL)
+  │  1) Cognito username/password  →  ID token (JWT)
+  │  2) HTTPS (one CloudFront URL) + Authorization: Bearer <JWT>
   ▼
 CloudFront
-  ├─ /*           → S3 (React)         ← no AWS keys in the browser
-  └─ /api/*, /health → App Runner API  ← IAM Instance Role invokes AgentCore
+  ├─ /* , /config.json → S3 (React login + chat)
+  └─ /api/* , /health  → App Runner API
   │
   ▼
+FastAPI
+  │  verify JWT (Cognito JWKS) — no token → 401
+  │  IAM Instance Role → InvokeAgentRuntime
+  ▼
 AgentCore Runtime (strands_support_copilot)
-  + Memory + Gateway + Identity
+  + Memory + Gateway + Identity (Gateway M2M Cognito ≠ browser login)
   + Bedrock Guardrail (ApplyGuardrail)
   + OpenAI LLM (typical classroom accounts block Bedrock model Error 002)
 ```
 
 | Piece | Runs where | Holds secrets? |
 |---|---|---|
-| React UI | S3 + CloudFront (or local Vite) | **No** — same-origin `/api` via CloudFront |
-| FastAPI | App Runner container (or local uvicorn) | **No OpenAI key** — only AWS IAM to invoke Runtime |
-| Agent Runtime | Bedrock AgentCore | Yes — `OPENAI_API_KEY`, Gateway token, Memory id (baked at `agentcore deploy`) |
+| React UI | S3 + CloudFront (or local Vite) | **No AWS keys** — Cognito client id is public; passwords stay in Cognito |
+| Cognito User Pool | AWS Cognito | User passwords (hashed by Cognito) |
+| FastAPI | App Runner (or local uvicorn) | Verifies JWT; uses IAM to call AgentCore (no OpenAI key here) |
+| Agent Runtime | Bedrock AgentCore | `OPENAI_API_KEY`, Gateway token, Memory id (baked at `agentcore deploy`) |
+
+**Two Cognitos (learn this once):**
+
+| Cognito | Purpose |
+|---|---|
+| **User Pool (this lab)** | Human login in the browser before chat |
+| **Gateway M2M (lab 02)** | Agent Runtime calling Gateway tools |
+
+### Reference demo (look only — do not use for homework)
+
+| | |
+|---|---|
+| **UI** | https://d3r3l9arg597re.cloudfront.net |
+| **Demo user** | `demo` |
+| **Demo password** | `DemoUser1!` |
+| **API health** | https://d3r3l9arg597re.cloudfront.net/health → `{"auth":"cognito"}` |
+
+You must deploy **your own** stack. Do not submit this shared URL as your homework.
 
 ---
 
@@ -101,7 +133,8 @@ Your IAM user/role needs enough access to:
 - **App Runner** — create/update service
 - **S3** + **CloudFront** — UI hosting
 - **Lambda** — CDK `BucketDeployment` helper
-- **Cognito** + **Lambda** — Gateway from lab 02
+- **Cognito User Pools** — browser login (this lab CDK stack)
+- **Cognito** + **Lambda** — Gateway M2M from lab 02
 
 Classroom tip: **`AdministratorAccess`** avoids mid-deploy IAM surprises.
 
@@ -132,24 +165,30 @@ Exact dollars vary by account; treat App Runner as the main “left it on overni
 
 ```
 05.strands-support-react-aws/
-├── README.md                 ← this file
-├── cdk/                      ← ★ production: one `cdk deploy`
+├── README.md                      ← this file (full deploy path)
+├── CLASSROOM_10_CDK_DEPLOYS.md    ← 10 stages via cdk/deploy.sh N
+├── classroom_steps/               ← ★ preferred: 10 cumulative folders
+│   ├── README.md
+│   ├── STEP_BY_STEP.md
+│   ├── DEPLOY_YOUR_OWN_STACK.md
+│   └── 01_empty_cdk … 10_agentcore_chat/
+├── cdk/                           ← production / staged CDK app
 │   ├── app.py
 │   ├── lauki_support_stack.py
 │   ├── cdk.json
 │   ├── requirements.txt
 │   ├── deploy.sh
 │   └── README.md
-├── scripts/deploy_aws.sh     ← alternative bash deploy (no CDK)
+├── scripts/deploy_aws.sh          ← alternative bash deploy (no CDK)
 ├── api/
 │   ├── Dockerfile
-│   ├── main.py               ← POST /api/chat → InvokeAgentRuntime
+│   ├── main.py                    ← POST /api/chat → InvokeAgentRuntime
 │   └── requirements.txt
 └── web/
     ├── package.json
     ├── vite.config.js
-    ├── amplify.yml           ← optional Amplify Hosting
-    └── src/App.jsx           ← empty VITE_API_BASE = same-origin /api
+    ├── amplify.yml                ← optional Amplify Hosting
+    └── src/App.jsx                ← empty VITE_API_BASE = same-origin /api
 ```
 
 ---
@@ -455,8 +494,10 @@ First deploy usually takes **10–20 minutes**. When it finishes, CDK prints:
 
 | Output | Meaning |
 |---|---|
-| **`CloudFrontUrl`** | ★ Open this in the browser (production UI) |
+| **`CloudFrontUrl`** | ★ Open this — **login page**, then chat |
 | `AppRunnerUrl` | Direct API (also via CloudFront `/api`) |
+| `UserPoolId` / `UserPoolClientId` | Cognito for the SPA (`/config.json`) |
+| `DemoUsername` / `DemoPassword` | Classroom demo user created by the stack |
 | `SupportRuntimeArn` | Echo of the ARN you passed |
 | `UiBucketName` | Private S3 bucket for static assets |
 
@@ -482,13 +523,16 @@ cat ../cdk-outputs.json
 
 | Resource | Construct / name |
 |---|---|
+| Cognito User Pool + SPA client | Browser username/password (`USER_PASSWORD_AUTH`) |
+| Demo user | `demo` / `DemoUser1!` (classroom only) |
+| `config.json` on S3 | SPA reads `userPoolId` + `clientId` at runtime |
 | Docker image → ECR (CDK assets) | `ApiImage` from `../api` (`linux/amd64`) |
-| App Runner service | `lauki-support-api-cdk` |
+| App Runner service | `lauki-support-api-cdk` + Cognito env vars |
 | Instance role | InvokeAgentRuntime on Runtime + `/runtime-endpoint/DEFAULT` |
 | ECR access role | App Runner pull from asset repo |
-| S3 bucket | Private + OAC (not a public website) |
-| CloudFront | comment `lauki-support-ui-cdk` — UI + `/api/*` + `/health` |
-| BucketDeployment | `npm ci && npm run build` in Node 20 container |
+| S3 bucket | Private + OAC |
+| CloudFront | UI + `/api/*` + `/health` |
+| BucketDeployment | React build + `config.json` |
 
 Stack code: [`cdk/lauki_support_stack.py`](cdk/lauki_support_stack.py).
 
@@ -553,16 +597,20 @@ Optional: host only the React app on Amplify using `web/amplify.yml` and build e
 CF_URL="https://dxxxx.cloudfront.net"
 
 curl -s "$CF_URL/health"
-# {"status":"ok"}
+# {"status":"ok","auth":"cognito"}
 
-curl -s -X POST "$CF_URL/api/chat" \
-  -H 'Content-Type: application/json' \
-  -d '{"prompt":"How do I activate a SIM?","actor_id":"prod-user"}'
+curl -s "$CF_URL/config.json"
+# userPoolId + clientId
 
-# macOS: open "$CF_URL"   |   Linux: xdg-open "$CF_URL"   |   or paste into a browser
+# Unauthenticated chat must fail
+curl -s -o /dev/null -w "%{http_code}\n" -X POST "$CF_URL/api/chat" \
+  -H 'Content-Type: application/json' -d '{"prompt":"hi"}'
+# 401
+
+# Browser: open CF_URL → sign in with DemoUsername / DemoPassword → ask eSIM
 ```
 
-Footer chip should say **`same-origin / local proxy`** (empty `VITE_API_BASE`).
+Footer after login shows your Cognito username. Without login you only see the sign-in form.
 
 ### After bash deploy
 

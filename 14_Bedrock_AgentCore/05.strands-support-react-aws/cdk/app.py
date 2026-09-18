@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CDK app entry — Lauki Support Copilot (API + React) on AWS."""
+"""CDK app — staged classroom deploys: -c stage=1 .. -c stage=10"""
 
 from __future__ import annotations
 
@@ -9,20 +9,20 @@ import aws_cdk as cdk
 
 from lauki_support_stack import LaukiSupportStack
 
-
 app = cdk.App()
 
+stage = int(app.node.try_get_context("stage") or os.environ.get("CDK_STAGE") or "10")
 runtime_arn = (
     app.node.try_get_context("supportRuntimeArn")
     or os.environ.get("SUPPORT_RUNTIME_ARN")
     or ""
 ).strip()
 
-if not runtime_arn:
+if stage >= 10 and not runtime_arn:
     raise SystemExit(
-        "Missing Runtime ARN.\n"
-        "  cdk deploy -c supportRuntimeArn=arn:aws:bedrock-agentcore:...\n"
-        "  or: export SUPPORT_RUNTIME_ARN=arn:aws:bedrock-agentcore:..."
+        "Stage 10 needs the AgentCore Runtime ARN.\n"
+        "  export SUPPORT_RUNTIME_ARN=arn:aws:bedrock-agentcore:...\n"
+        "  npx cdk deploy -c stage=10 -c supportRuntimeArn=$SUPPORT_RUNTIME_ARN"
     )
 
 env = cdk.Environment(
@@ -35,9 +35,10 @@ env = cdk.Environment(
 LaukiSupportStack(
     app,
     "LaukiSupportStack",
+    stage=stage,
     support_runtime_arn=runtime_arn,
     env=env,
-    description="Lauki Support: App Runner API + S3/CloudFront React → AgentCore Runtime",
+    description=f"Lauki Support classroom stack (stage {stage}/10)",
 )
 
 app.synth()

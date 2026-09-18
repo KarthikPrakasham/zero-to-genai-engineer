@@ -10,3 +10,11 @@ deploy-urls.txt
 cdk-outputs.json
 cdk/.venv/
 cdk/cdk.out/
+classroom_steps/*/.venv/
+classroom_steps/*/cdk/.venv/
+classroom_steps/*/cdk/cdk.out/
+classroom_steps/*/web/node_modules/
+classroom_steps/*/web/dist/
+classroom_steps/verify_run.log
+classroom_steps/VERIFY_REPORT.md
+classroom_steps/VERIFY_REPORT.md.bak

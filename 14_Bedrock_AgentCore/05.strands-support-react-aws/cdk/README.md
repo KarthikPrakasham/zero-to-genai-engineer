@@ -1,40 +1,61 @@
-# CDK — Lauki Support (production)
+# CDK — Lauki Support (staged deploys)
 
-Parent guide: [`../README.md`](../README.md)
+Parent lab: [`../README.md`](../README.md)  
+Stage-by-stage guide: [`../CLASSROOM_10_CDK_DEPLOYS.md`](../CLASSROOM_10_CDK_DEPLOYS.md)  
+Folder snapshots (often easier): [`../classroom_steps/`](../classroom_steps/)
 
-Deploys **App Runner (FastAPI) + private S3 + CloudFront** in one stack so the
-browser uses a single HTTPS origin (`/api` proxied to App Runner).
-
-## Quick start
-
-```bash
-# From repo lab root 05.strands-support-react-aws/
-export AWS_PROFILE=<your-profile>
-export AWS_REGION=us-east-1
-export SUPPORT_RUNTIME_ARN=arn:aws:bedrock-agentcore:us-east-1:ACCOUNT:runtime/strands_support_copilot-XXXX
-
-bash cdk/deploy.sh
-```
-
-Open the **`CloudFrontUrl`** output when deploy finishes.
-
-## Manual
+Grow the same stack with **10 deploys**:
 
 ```bash
-cd cdk
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-export CDK_DEFAULT_REGION=us-east-1
-npx cdk@2 bootstrap "aws://${CDK_DEFAULT_ACCOUNT}/${CDK_DEFAULT_REGION}"
-npx cdk@2 deploy -c supportRuntimeArn="$SUPPORT_RUNTIME_ARN" --require-approval never
+bash cdk/deploy.sh 1   # empty marker (SSM)
+bash cdk/deploy.sh 2   # Cognito pool
+# ...
+bash cdk/deploy.sh 9   # JWT lock
+SUPPORT_RUNTIME_ARN=arn:... bash cdk/deploy.sh 10   # AgentCore chat
 ```
+
+Or jump straight to the full stack (same as stage 10):
+
+```bash
+export SUPPORT_RUNTIME_ARN=arn:aws:bedrock-agentcore:us-east-1:YOUR_ACCOUNT:runtime/strands_support_copilot-XXXX
+bash cdk/deploy.sh 10
+```
+
+Open **`CloudFrontUrl`**. Login: **`demo` / `DemoUser1!`** (created from stage 4).
+
+## Stage map
+
+| Stage | What appears |
+|------:|--------------|
+| 1 | SSM stage marker |
+| 2 | Cognito User Pool |
+| 3 | SPA app client |
+| 4 | Demo user |
+| 5 | Private S3 UI bucket |
+| 6 | CloudFront + placeholder HTML |
+| 7 | React login UI (`chatEnabled: false`) |
+| 8 | App Runner `/health` (+ CF `/health`, `/api/*`) |
+| 9 | Cognito JWT on API |
+| 10 | `SUPPORT_RUNTIME_ARN` + chat UI |
+
+## Outputs
+
+| Output | From stage |
+|---|---|
+| `DeployStage` / `StageHint` | 1+ |
+| `UserPoolId` | 2+ |
+| `UserPoolClientId` | 3+ |
+| `DemoUsername` / `DemoPassword` | 4+ |
+| `UiBucketName` | 5+ |
+| `CloudFrontUrl` | 6+ |
+| `AppRunnerUrl` | 8+ |
+| `SupportRuntimeArn` | 10 |
 
 ## Destroy
 
 ```bash
-npx cdk@2 destroy -c supportRuntimeArn="$SUPPORT_RUNTIME_ARN" --force
+cd cdk && source .venv/bin/activate
+npx cdk destroy -c stage=10 -c supportRuntimeArn="$SUPPORT_RUNTIME_ARN" --force
 ```
 
-Does **not** delete AgentCore Runtime / Memory / Gateway / Guardrail (those stay
-in lab 02 until you remove them separately).
+Does **not** delete AgentCore Runtime / Memory / Gateway / Guardrail from lab 02.
