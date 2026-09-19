@@ -412,7 +412,7 @@ class LaukiSupportStack(Stack):
             auto_scaling_configuration_name=f"lauki-support-{_safe}"[:32],
             min_size=1,
             max_size=3,
-            max_concurrency=25,
+            max_concurrency=10,
         )
         api_service.auto_scaling_configuration_arn = (
             autoscaling.attr_auto_scaling_configuration_arn

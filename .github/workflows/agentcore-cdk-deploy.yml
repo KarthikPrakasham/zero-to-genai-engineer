@@ -44,6 +44,7 @@ env:
     -c stackName=LaukiSupportStack
     -c supportRuntimeArn=${{ secrets.SUPPORT_RUNTIME_ARN }}
     -c budgetAlertEmail=${{ vars.BUDGET_ALERT_EMAIL }}
+    -c budgetLimitUsd=${{ vars.BUDGET_LIMIT_USD }}
 
 jobs:
   plan:
