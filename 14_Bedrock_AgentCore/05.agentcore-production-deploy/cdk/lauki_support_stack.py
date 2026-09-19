@@ -12,8 +12,14 @@ Staged classroom stack — grow with repeated `cdk deploy -c stage=N`.
   stage 8  App Runner FastAPI /health (+ CF /health + /api/*)
   stage 9  JWT lock on API (/api/me) + Cognito env on App Runner
   stage 10 AgentCore /api/chat + React chat enabled
+  stage 11 App Runner auto scaling config + monthly cost budget alarm
+  stage 12 GitHub Actions OIDC deploy role (CI can `cdk deploy`, not a laptop)
 
 Requires SUPPORT_RUNTIME_ARN only for stage >= 10.
+Stage 11's budget alarm is skipped unless you pass -c budgetAlertEmail=...
+Stage 12 imports an existing GitHub OIDC provider if you pass
+-c githubOidcProviderArn=... (most AWS accounts only allow one per URL);
+otherwise it creates a new one.
 """
 
 from __future__ import annotations
@@ -29,6 +35,7 @@ from aws_cdk import (
     Stack,
 )
 from aws_cdk import aws_apprunner as apprunner
+from aws_cdk import aws_budgets as budgets
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
 from aws_cdk import aws_cognito as cognito
@@ -56,12 +63,16 @@ class LaukiSupportStack(Stack):
         *,
         stage: int,
         support_runtime_arn: str = "",
+        budget_alert_email: str = "",
+        budget_limit_usd: float = 15.0,
+        github_repo: str = "nursnaaz/zero-to-genai-engineer",
+        github_oidc_provider_arn: str = "",
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        if stage < 1 or stage > 10:
-            raise ValueError("stage must be 1..10")
+        if stage < 1 or stage > 12:
+            raise ValueError("stage must be 1..12")
 
         region = Stack.of(self).region
 
@@ -80,6 +91,8 @@ class LaukiSupportStack(Stack):
                 8: "App Runner /health live (same-origin via CF)",
                 9: "API JWT lock (/api/me) live",
                 10: "Full chat via AgentCore",
+                11: "Auto scaling + cost budget alarm live",
+                12: "GitHub Actions can deploy this stack via OIDC",
             }[stage],
         )
 
@@ -479,3 +492,106 @@ class LaukiSupportStack(Stack):
                 distribution_paths=["/*"],
                 memory_limit=1024,
             )
+
+        # ----- Stage 11: App Runner auto scaling + a monthly cost budget -----
+        if stage >= 11 and api_service is not None:
+            # min_size keeps one warm instance (no cold start on the first
+            # request); max_size is a hard ceiling so a traffic burst in
+            # class can't turn into a runaway bill; max_concurrency is how
+            # many in-flight requests one instance takes before App Runner
+            # starts a new one.
+            autoscaling = apprunner.CfnAutoScalingConfiguration(
+                self,
+                "ApiAutoScaling",
+                auto_scaling_configuration_name=f"lauki-support-s{stage}",
+                min_size=1,
+                max_size=3,
+                max_concurrency=25,
+            )
+            api_service.auto_scaling_configuration_arn = (
+                autoscaling.attr_auto_scaling_configuration_arn
+            )
+            CfnOutput(
+                self,
+                "AutoScalingLimits",
+                value="min=1 max=3 concurrency=25 (edit in stack.py)",
+            )
+
+            # Budgets supports an EMAIL subscriber directly — no SNS topic
+            # or topic policy needed, which keeps this safe to run live.
+            if budget_alert_email:
+                budgets.CfnBudget(
+                    self,
+                    "MonthlyCostBudget",
+                    budget=budgets.CfnBudget.BudgetDataProperty(
+                        budget_type="COST",
+                        time_unit="MONTHLY",
+                        budget_limit=budgets.CfnBudget.SpendProperty(
+                            amount=budget_limit_usd, unit="USD"
+                        ),
+                    ),
+                    notifications_with_subscribers=[
+                        budgets.CfnBudget.NotificationWithSubscribersProperty(
+                            notification=budgets.CfnBudget.NotificationProperty(
+                                notification_type="ACTUAL",
+                                comparison_operator="GREATER_THAN",
+                                threshold=80,
+                                threshold_type="PERCENTAGE",
+                            ),
+                            subscribers=[
+                                budgets.CfnBudget.SubscriberProperty(
+                                    subscription_type="EMAIL",
+                                    address=budget_alert_email,
+                                )
+                            ],
+                        )
+                    ],
+                )
+                CfnOutput(
+                    self,
+                    "BudgetAlert",
+                    value=f"${budget_limit_usd}/mo, alert at 80% -> {budget_alert_email}",
+                )
+
+        # ----- Stage 12: let GitHub Actions deploy this stack via OIDC -----
+        # (no long-lived AWS keys stored in the repo — same "no secrets in
+        # the browser" idea from the Cognito/App Runner design, applied to
+        # the pipeline instead of the UI.)
+        if stage >= 12:
+            if github_oidc_provider_arn:
+                oidc_provider = iam.OpenIdConnectProvider.from_open_id_connect_provider_arn(
+                    self, "GithubOidcProvider", github_oidc_provider_arn
+                )
+            else:
+                oidc_provider = iam.OpenIdConnectProvider(
+                    self,
+                    "GithubOidcProvider",
+                    url="https://token.actions.githubusercontent.com",
+                    client_ids=["sts.amazonaws.com"],
+                )
+
+            deploy_role = iam.Role(
+                self,
+                "GithubActionsDeployRole",
+                assumed_by=iam.WebIdentityPrincipal(
+                    oidc_provider.open_id_connect_provider_arn,
+                    conditions={
+                        "StringEquals": {
+                            "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+                        },
+                        "StringLike": {
+                            "token.actions.githubusercontent.com:sub": f"repo:{github_repo}:*"
+                        },
+                    },
+                ),
+                # Classroom scope: broad enough to deploy this whole stack.
+                # Tighten to a scoped CDK-deploy policy once the pipeline is
+                # proven — see OPS_DAY_RUNBOOK.md.
+                managed_policies=[
+                    iam.ManagedPolicy.from_aws_managed_policy_name(
+                        "AdministratorAccess"
+                    )
+                ],
+                max_session_duration=Duration.hours(1),
+            )
+            CfnOutput(self, "GithubActionsDeployRoleArn", value=deploy_role.role_arn)

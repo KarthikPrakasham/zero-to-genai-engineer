@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
-"""CDK app — staged classroom deploys: -c stage=1 .. -c stage=10"""
-
 from __future__ import annotations
 
 import os
-
 import aws_cdk as cdk
-
-from lauki_support_stack import LaukiSupportStack
+from stack import LaukiSupportStack
 
 app = cdk.App()
-
-stage = int(app.node.try_get_context("stage") or os.environ.get("CDK_STAGE") or "10")
+stack_name = (
+    app.node.try_get_context("stackName")
+    or os.environ.get("STACK_NAME")
+    or "LaukiSupportStack"
+)
 runtime_arn = (
     app.node.try_get_context("supportRuntimeArn")
     or os.environ.get("SUPPORT_RUNTIME_ARN")
     or ""
 ).strip()
+if not runtime_arn:
+    raise SystemExit(
+        "Need SUPPORT_RUNTIME_ARN\n"
+        "  export SUPPORT_RUNTIME_ARN=arn:aws:bedrock-agentcore:..."
+    )
 budget_alert_email = (
     app.node.try_get_context("budgetAlertEmail")
     or os.environ.get("BUDGET_ALERT_EMAIL")
@@ -38,13 +42,6 @@ github_oidc_provider_arn = (
     or ""
 ).strip()
 
-if stage >= 10 and not runtime_arn:
-    raise SystemExit(
-        "Stage 10 needs the AgentCore Runtime ARN.\n"
-        "  export SUPPORT_RUNTIME_ARN=arn:aws:bedrock-agentcore:...\n"
-        "  npx cdk deploy -c stage=10 -c supportRuntimeArn=$SUPPORT_RUNTIME_ARN"
-    )
-
 env = cdk.Environment(
     account=os.environ.get("CDK_DEFAULT_ACCOUNT"),
     region=os.environ.get("CDK_DEFAULT_REGION")
@@ -54,15 +51,13 @@ env = cdk.Environment(
 
 LaukiSupportStack(
     app,
-    "LaukiSupportStack",
-    stage=stage,
+    stack_name,
     support_runtime_arn=runtime_arn,
     budget_alert_email=budget_alert_email,
     budget_limit_usd=budget_limit_usd,
     github_repo=github_repo,
     github_oidc_provider_arn=github_oidc_provider_arn,
     env=env,
-    description=f"Lauki Support classroom stack (stage {stage}/12)",
+    description="Lauki Support classroom step 11 (ops day)",
 )
-
 app.synth()
