@@ -406,13 +406,14 @@ class LaukiSupportStack(Stack):
         # can't turn into a runaway bill; max_concurrency is how many
         # in-flight requests one instance takes before App Runner starts a
         # new one.
+        min_size, max_size, max_concurrency = 1, 3, 10
         autoscaling = apprunner.CfnAutoScalingConfiguration(
             self,
             "ApiAutoScaling",
             auto_scaling_configuration_name=f"lauki-support-{_safe}"[:32],
-            min_size=1,
-            max_size=3,
-            max_concurrency=10,
+            min_size=min_size,
+            max_size=max_size,
+            max_concurrency=max_concurrency,
         )
         api_service.auto_scaling_configuration_arn = (
             autoscaling.attr_auto_scaling_configuration_arn
@@ -420,7 +421,7 @@ class LaukiSupportStack(Stack):
         CfnOutput(
             self,
             "AutoScalingLimits",
-            value="min=1 max=3 concurrency=25 (edit in stack.py)",
+            value=f"min={min_size} max={max_size} concurrency={max_concurrency} (edit in stack.py)",
         )
 
         # Budgets supports an EMAIL subscriber directly — no SNS topic or
